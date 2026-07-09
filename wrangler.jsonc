@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "test-allconfig",
+  "name": "allconfig",
   "main": "src/index.js",
   "compatibility_date": "2026-04-21",
 
