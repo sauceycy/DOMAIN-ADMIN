@@ -13,19 +13,19 @@
 
   "kv_namespaces": [
     {
-      "binding": "DOMAIN_KV",
+      "binding": "allconfig",
       "id": "85401dc925514a5ca92c7d328438873c",
       "remote": true
     }
   ],
   "routes": [
     {
-      "pattern": "test-conf.allconf10101.xyz",
+      "pattern": "conf.allconf10101.xyz",
       "zone_name": "allconf10101.xyz",
       "custom_domain": true
     },
     {
-      "pattern": "test-conf.allworkers10101.xyz",
+      "pattern": "conf.allworkers10101.xyz",
       "zone_name": "allworkers10101.xyz",
       "custom_domain": true
     }

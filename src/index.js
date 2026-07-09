@@ -185,7 +185,7 @@ async function handleConfig(request, env, ctx) {
     return json({ error: "missing packageId" }, 400);
   }
 
-  const config = await env.DOMAIN_KV.get(`package_${packageId}`, {
+  const config = await env.allconfig.get(`package_${packageId}`, {
     type: "json",
   });
 
@@ -234,7 +234,7 @@ async function handleConfig(request, env, ctx) {
 // =========================
 async function handleGetPackage(packageId, env) {
   const key = `package_${packageId}`;
-  const config = await env.DOMAIN_KV.get(key, { type: "json" });
+  const config = await env.allconfig.get(key, { type: "json" });
 
   if (!config) {
     return json({ error: "config not found" }, 404);
@@ -249,7 +249,7 @@ async function handleGetPackage(packageId, env) {
 
 async function handleSavePackage(packageId, request, env, username) {
   const key = `package_${packageId}`;
-  const oldConfig = (await env.DOMAIN_KV.get(key, { type: "json" })) || null;
+  const oldConfig = (await env.allconfig.get(key, { type: "json" })) || null;
 
   const body = await request.json().catch(() => null);
   if (!body) {
@@ -262,7 +262,7 @@ async function handleSavePackage(packageId, request, env, username) {
     return json({ error: "domain is required" }, 400);
   }
 
-  await env.DOMAIN_KV.put(key, JSON.stringify(newConfig));
+  await env.allconfig.put(key, JSON.stringify(newConfig));
 
   return json({
     ok: true,
