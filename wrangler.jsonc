@@ -1,0 +1,42 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "test-allconfig",
+  "main": "src/index.js",
+  "compatibility_date": "2026-04-21",
+
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+
+  "kv_namespaces": [
+    {
+      "binding": "DOMAIN_KV",
+      "id": "85401dc925514a5ca92c7d328438873c",
+      "remote": true
+    }
+  ],
+  "routes": [
+    {
+      "pattern": "test-conf.allconf10101.xyz",
+      "zone_name": "allconf10101.xyz",
+      "custom_domain": true
+    },
+    {
+      "pattern": "test-conf.allworkers10101.xyz",
+      "zone_name": "allworkers10101.xyz",
+      "custom_domain": true
+    }
+  ],
+
+  "preview_urls": false,
+
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true
+    }
+  }
+}

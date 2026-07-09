@@ -1,0 +1,12 @@
+{
+  "name": "domain-admin",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "wrangler": "^4.14.0"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  }
+}
