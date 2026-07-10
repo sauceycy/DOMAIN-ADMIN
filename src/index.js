@@ -93,9 +93,16 @@ async function handleAdminLogin(request, env) {
     return json({ error: "username and password are required" }, 400);
   }
 
+  const adminUsername = safeString(env.ADMIN_USERNAME);
+  const adminPassword = safeString(env.ADMIN_PASSWORD);
+
+  if (!adminUsername || !adminPassword || !safeString(env.SESSION_SECRET)) {
+    return json({ error: "admin credentials are not configured" }, 500);
+  }
+
   if (
-    username !== env.ADMIN_USERNAME ||
-    password !== env.ADMIN_PASSWORD
+    username !== adminUsername ||
+    password !== adminPassword
   ) {
     return json({ error: "invalid username or password" }, 401);
   }
