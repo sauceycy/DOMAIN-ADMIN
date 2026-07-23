@@ -274,40 +274,27 @@ async function handleDomains(request, env) {
     return base64Json({
       code: 0,
       data: {
-        packageid: packageId,
         domain,
-        domains: {},
-        missing: [],
       },
       msg: "Successfully",
       success: true,
     });
   }
 
-  const domains = {};
-  const missing = [];
+  const config = await getChannelConfig(packageId, packageConfig, channel, env);
+  if (!config) {
+    return json({ error: "channel domain not found" }, 404);
+  }
 
-  for (const channel of channels) {
-    const config = await getChannelConfig(packageId, packageConfig, channel, env);
-    if (!config) {
-      missing.push(channel);
-      continue;
-    }
-
-    const domain = await resolveDomainValue(config);
-    if (domain) {
-      domains[channel] = domain;
-    } else {
-      missing.push(channel);
-    }
+  const domain = await resolveDomainValue(config);
+  if (!domain) {
+    return json({ error: "channel domain not found" }, 404);
   }
 
   return base64Json({
     code: 0,
     data: {
-      packageid: packageId,
-      domains,
-      missing,
+      domain,
     },
     msg: "Successfully",
     success: true,
