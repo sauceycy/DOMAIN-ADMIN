@@ -245,8 +245,20 @@ async function handleConfig(request, env, ctx) {
 // =========================
 async function handleDomains(request, env) {
   const url = new URL(request.url);
-  const body = await request.json().catch(() => null);
-  if (!body) return json({ error: "invalid json body" }, 400);
+  const rawBody = await request.text();
+  let body = {};
+
+  if (rawBody.trim()) {
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      return json({ error: "invalid json body" }, 400);
+    }
+
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return json({ error: "invalid json body" }, 400);
+    }
+  }
 
   const packageId =
     safeString(body.packageid) ||
@@ -277,7 +289,7 @@ async function handleDomains(request, env) {
       return json({ error: "default domain not found" }, 404);
     }
 
-    return json({
+    return base64Json({
       code: 0,
       data: {
         packageid: packageId,
@@ -308,7 +320,7 @@ async function handleDomains(request, env) {
     }
   }
 
-  return json({
+  return base64Json({
     code: 0,
     data: {
       packageid: packageId,
@@ -637,6 +649,16 @@ function json(data, status = 200) {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+function base64Json(data, status = 200) {
+  return new Response(base64EncodeUtf8(JSON.stringify(data)), {
+    status,
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
       "Cache-Control": "no-store",
     },
   });
