@@ -281,14 +281,15 @@ async function handleDomains(request, env) {
     });
   }
 
-  const config = await getChannelConfig(packageId, packageConfig, channel, env);
-  if (!config) {
-    return json({ error: "channel domain not found" }, 404);
-  }
-
-  const domain = await resolveDomainValue(config);
+  const channelConfig = await getChannelConfig(
+    packageId,
+    packageConfig,
+    channel,
+    env
+  );
+  const domain = await resolveDomainValue(channelConfig || packageConfig);
   if (!domain) {
-    return json({ error: "channel domain not found" }, 404);
+    return json({ error: "default domain not found" }, 404);
   }
 
   return base64Json({
