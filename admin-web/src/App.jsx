@@ -11,6 +11,7 @@ export default function App() {
   const [domain, setDomain] = useState("");
   const [list, setList] = useState("");
   const [remark, setRemark] = useState("manual update");
+  const [channels, setChannels] = useState([]);
   const [output, setOutput] = useState("{}");
   const [status, setStatus] = useState("准备就绪");
   const [loading, setLoading] = useState(false);
@@ -93,6 +94,7 @@ export default function App() {
       setDomain(config.domain || "");
       setList(Array.isArray(config.list) ? config.list.join("\n") : "");
       setRemark(config.remark || "manual update");
+      setChannels(configToChannelRows(config));
       setStatus("配置加载成功");
     } finally {
       setLoading(false);
@@ -113,6 +115,7 @@ export default function App() {
           domain,
           list,
           remark,
+          channels: channelRowsToConfig(channels),
         }),
       });
 
@@ -128,10 +131,32 @@ export default function App() {
       setDomain(config.domain || "");
       setList(Array.isArray(config.list) ? config.list.join("\n") : "");
       setRemark(config.remark || "manual update");
+      setChannels(configToChannelRows(config));
       setStatus("保存成功");
     } finally {
       setLoading(false);
     }
+  }
+
+  function updateChannel(index, field, value) {
+    setChannels((current) =>
+      current.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item
+      )
+    );
+  }
+
+  function addChannel() {
+    setChannels((current) => [
+      ...current,
+      { channel: "", domain: "", list: "" },
+    ]);
+  }
+
+  function removeChannel(index) {
+    setChannels((current) =>
+      current.filter((_, itemIndex) => itemIndex !== index)
+    );
   }
 
   if (!loggedIn) {
@@ -236,12 +261,122 @@ export default function App() {
         </div>
 
         <div style={styles.card}>
+          <div style={styles.sectionHeader}>
+            <div>
+              <h3 style={styles.sectionTitle}>渠道域名</h3>
+              <p style={styles.sectionDesc}>
+                为当前 Package ID 配置各渠道的主域名和备用域名。
+              </p>
+            </div>
+            <button style={styles.secondaryBtn} onClick={addChannel} disabled={loading}>
+              添加渠道
+            </button>
+          </div>
+
+          {channels.length === 0 ? (
+            <div style={styles.emptyState}>暂无渠道配置，点击“添加渠道”开始设置。</div>
+          ) : (
+            channels.map((item, index) => (
+              <div style={styles.channelCard} key={index}>
+                <div style={styles.channelGrid}>
+                  <div>
+                    <label style={styles.label}>渠道标识</label>
+                    <input
+                      style={styles.input}
+                      placeholder="例如 google-play"
+                      value={item.channel}
+                      onChange={(e) => updateChannel(index, "channel", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={styles.label}>渠道主域名</label>
+                    <input
+                      style={styles.input}
+                      placeholder="https://example.com"
+                      value={item.domain}
+                      onChange={(e) => updateChannel(index, "domain", e.target.value)}
+                    />
+                  </div>
+                </div>
+                <label style={styles.label}>渠道备用域名（每行一个）</label>
+                <textarea
+                  style={styles.textarea}
+                  rows={3}
+                  value={item.list}
+                  onChange={(e) => updateChannel(index, "list", e.target.value)}
+                />
+                <button
+                  style={styles.dangerBtn}
+                  onClick={() => removeChannel(index)}
+                  disabled={loading}
+                >
+                  删除渠道
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div style={styles.card}>
           <h3 style={{ marginTop: 0 }}>接口返回</h3>
           <pre style={styles.codeBlock}>{output}</pre>
         </div>
       </div>
     </div>
   );
+}
+
+function configToChannelRows(config) {
+  const source =
+    config.channels || config.channelDomains ||
+    (config.domains && !Array.isArray(config.domains) ? config.domains : {});
+
+  if (Array.isArray(source)) {
+    return source.map((item) => ({
+      channel: item.channel || item.channelId || item.code || item.id || "",
+      domain: item.domain || item.url || item.mainDomain || item.value || "",
+      list: Array.isArray(item.list)
+        ? item.list.join("\n")
+        : Array.isArray(item.backupDomains)
+          ? item.backupDomains.join("\n")
+          : "",
+    }));
+  }
+
+  if (!source || typeof source !== "object") return [];
+
+  return Object.entries(source).map(([channel, value]) => ({
+    channel,
+    domain:
+      typeof value === "string"
+        ? value
+        : value?.domain || value?.url || value?.mainDomain || value?.value || "",
+    list:
+      typeof value === "object" && Array.isArray(value?.list)
+        ? value.list.join("\n")
+        : typeof value === "object" && Array.isArray(value?.backupDomains)
+          ? value.backupDomains.join("\n")
+          : "",
+  }));
+}
+
+function channelRowsToConfig(rows) {
+  return rows.reduce((result, item) => {
+    const channel = item.channel.trim();
+    const domain = item.domain.trim();
+    if (!channel || !domain) return result;
+
+    result[channel] = {
+      domain,
+      list: [...new Set(
+        item.list
+          .split(/[\n,]/)
+          .map((value) => value.trim())
+          .filter((value) => value && value !== domain)
+      )],
+    };
+    return result;
+  }, {});
 }
 
 const styles = {
@@ -380,5 +515,50 @@ const styles = {
     overflow: "auto",
     fontSize: 13,
     lineHeight: 1.7,
+  },
+  sectionHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 16,
+    marginBottom: 16,
+    flexWrap: "wrap",
+  },
+  sectionTitle: {
+    margin: 0,
+  },
+  sectionDesc: {
+    color: "#94a3b8",
+    margin: "6px 0 0",
+    fontSize: 14,
+  },
+  emptyState: {
+    padding: 20,
+    borderRadius: 14,
+    border: "1px dashed rgba(148,163,184,0.25)",
+    color: "#94a3b8",
+    textAlign: "center",
+  },
+  channelCard: {
+    padding: 16,
+    marginTop: 14,
+    borderRadius: 14,
+    border: "1px solid rgba(148,163,184,0.16)",
+    background: "rgba(2,6,23,0.3)",
+  },
+  channelGrid: {
+    display: "grid",
+    gridTemplateColumns: "minmax(180px, 0.7fr) minmax(260px, 1.3fr)",
+    gap: 16,
+  },
+  dangerBtn: {
+    marginTop: 12,
+    border: "1px solid rgba(248,113,113,0.35)",
+    borderRadius: 10,
+    padding: "9px 13px",
+    background: "rgba(127,29,29,0.2)",
+    color: "#fca5a5",
+    fontWeight: 600,
+    cursor: "pointer",
   },
 };

@@ -445,15 +445,75 @@ function normalizeConfig(body, oldConfig = null, username = "admin") {
   list = uniqueStrings(list.filter((item) => item && item !== domain));
 
   const version = Number(oldConfig?.version || 0) + 1;
+  const channels = normalizeChannelConfigs(
+    body.channels ??
+      body.channelDomains ??
+      (body.domains && !Array.isArray(body.domains) ? body.domains : undefined) ??
+      oldConfig?.channels ??
+      oldConfig?.channelDomains ??
+      (oldConfig?.domains && !Array.isArray(oldConfig.domains)
+        ? oldConfig.domains
+        : undefined)
+  );
 
   return {
     domain,
     list,
+    channels,
     version,
     updatedAt: now,
     updatedBy,
     remark,
   };
+}
+
+function normalizeChannelConfigs(value) {
+  if (!value) return {};
+
+  const entries = Array.isArray(value)
+    ? value.map((item) => [
+        safeString(item?.channel) ||
+          safeString(item?.channelId) ||
+          safeString(item?.code) ||
+          safeString(item?.id),
+        item,
+      ])
+    : typeof value === "object"
+      ? Object.entries(value)
+      : [];
+
+  const channels = {};
+
+  for (const [rawChannel, rawConfig] of entries) {
+    const channel = safeString(rawChannel);
+    if (!channel || !rawConfig) continue;
+
+    if (typeof rawConfig === "string") {
+      const domain = safeString(rawConfig);
+      if (domain) channels[channel] = { domain, list: [] };
+      continue;
+    }
+
+    if (typeof rawConfig !== "object") continue;
+
+    const domain =
+      safeString(rawConfig.domain) ||
+      safeString(rawConfig.url) ||
+      safeString(rawConfig.mainDomain) ||
+      safeString(rawConfig.value);
+    const list =
+      normalizeStringArray(rawConfig.list) ||
+      normalizeStringArray(rawConfig.backupDomains) ||
+      [];
+
+    if (!domain) continue;
+    channels[channel] = {
+      domain,
+      list: uniqueStrings(list.filter((item) => item !== domain)),
+    };
+  }
+
+  return channels;
 }
 
 // =========================
