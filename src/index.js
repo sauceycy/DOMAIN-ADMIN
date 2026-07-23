@@ -258,17 +258,36 @@ async function handleDomains(request, env) {
     return json({ error: "packageid is required" }, 400);
   }
 
-  const channels = normalizeStringArray(body.channels);
-  if (!channels || channels.length === 0) {
-    return json({ error: "channels are required" }, 400);
-  }
-
   const packageConfig = await env.allconfig.get(`package_${packageId}`, {
     type: "json",
   });
 
   if (!packageConfig) {
     return json({ error: "package config not found" }, 404);
+  }
+
+  const channels = normalizeStringArray(body.channels);
+  if (body.channels != null && !channels) {
+    return json({ error: "channels must be an array or string" }, 400);
+  }
+
+  if (!channels || channels.length === 0) {
+    const domain = await resolveDomainValue(packageConfig);
+    if (!domain) {
+      return json({ error: "default domain not found" }, 404);
+    }
+
+    return json({
+      code: 0,
+      data: {
+        packageid: packageId,
+        domain,
+        domains: {},
+        missing: [],
+      },
+      msg: "Successfully",
+      success: true,
+    });
   }
 
   const domains = {};
