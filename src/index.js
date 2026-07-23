@@ -244,19 +244,38 @@ async function handleConfig(request, env, ctx) {
 // 渠道域名批量查询
 // =========================
 async function handleDomains(request, env) {
+  const url = new URL(request.url);
   const body = await request.json().catch(() => null);
   if (!body) return json({ error: "invalid json body" }, 400);
+
+  const packageId =
+    safeString(body.packageid) ||
+    safeString(body.packageId) ||
+    safeString(request.headers.get("packageid")) ||
+    safeString(url.searchParams.get("packageid"));
+
+  if (!packageId) {
+    return json({ error: "packageid is required" }, 400);
+  }
 
   const channels = normalizeStringArray(body.channels);
   if (!channels || channels.length === 0) {
     return json({ error: "channels are required" }, 400);
   }
 
+  const packageConfig = await env.allconfig.get(`package_${packageId}`, {
+    type: "json",
+  });
+
+  if (!packageConfig) {
+    return json({ error: "package config not found" }, 404);
+  }
+
   const domains = {};
   const missing = [];
 
   for (const channel of channels) {
-    const config = await getChannelConfig(channel, env);
+    const config = await getChannelConfig(packageId, packageConfig, channel, env);
     if (!config) {
       missing.push(channel);
       continue;
@@ -273,6 +292,7 @@ async function handleDomains(request, env) {
   return json({
     code: 0,
     data: {
+      packageid: packageId,
       domains,
       missing,
     },
@@ -281,16 +301,48 @@ async function handleDomains(request, env) {
   });
 }
 
-async function getChannelConfig(channel, env) {
+async function getChannelConfig(packageId, packageConfig, channel, env) {
+  const embeddedConfig = getEmbeddedChannelConfig(packageConfig, channel);
+  if (embeddedConfig) return embeddedConfig;
+
   const keys = [
-    `channel_${channel}`,
-    `domain_${channel}`,
-    `package_${channel}`,
+    `package_${packageId}_channel_${channel}`,
+    `package_${packageId}_${channel}`,
+    `channel_${packageId}_${channel}`,
   ];
 
   for (const key of keys) {
     const value = await getKvJsonOrText(key, env);
     if (value) return value;
+  }
+
+  return null;
+}
+
+function getEmbeddedChannelConfig(packageConfig, channel) {
+  if (!packageConfig || typeof packageConfig !== "object") return null;
+
+  const maps = [
+    packageConfig.channels,
+    packageConfig.channelDomains,
+    packageConfig.domains,
+  ];
+
+  for (const map of maps) {
+    if (!map || typeof map !== "object" || Array.isArray(map)) continue;
+    if (map[channel]) return map[channel];
+  }
+
+  if (Array.isArray(packageConfig.channels)) {
+    return packageConfig.channels.find((item) => {
+      if (!item || typeof item !== "object") return false;
+      return (
+        safeString(item.channel) === channel ||
+        safeString(item.channelId) === channel ||
+        safeString(item.code) === channel ||
+        safeString(item.id) === channel
+      );
+    }) || null;
   }
 
   return null;
