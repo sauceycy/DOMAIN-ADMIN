@@ -47,6 +47,10 @@ export default {
         return handleConfig(request, env, ctx);
       }
 
+      if (request.method === "POST" && url.pathname === "/api/domains") {
+        return handleDomains(request, env);
+      }
+
       // =========================
       // 4) 兼容旧接口：
       //    "/" 且带 packageid 时仍走原分发逻辑
@@ -234,6 +238,88 @@ async function handleConfig(request, env, ctx) {
 
   ctx.waitUntil(cache.put(cacheKey, response.clone()));
   return response;
+}
+
+// =========================
+// 渠道域名批量查询
+// =========================
+async function handleDomains(request, env) {
+  const body = await request.json().catch(() => null);
+  if (!body) return json({ error: "invalid json body" }, 400);
+
+  const channels = normalizeStringArray(body.channels);
+  if (!channels || channels.length === 0) {
+    return json({ error: "channels are required" }, 400);
+  }
+
+  const domains = {};
+  const missing = [];
+
+  for (const channel of channels) {
+    const config = await getChannelConfig(channel, env);
+    if (!config) {
+      missing.push(channel);
+      continue;
+    }
+
+    const domain = await resolveDomainValue(config);
+    if (domain) {
+      domains[channel] = domain;
+    } else {
+      missing.push(channel);
+    }
+  }
+
+  return json({
+    code: 0,
+    data: {
+      domains,
+      missing,
+    },
+    msg: "Successfully",
+    success: true,
+  });
+}
+
+async function getChannelConfig(channel, env) {
+  const keys = [
+    `channel_${channel}`,
+    `domain_${channel}`,
+    `package_${channel}`,
+  ];
+
+  for (const key of keys) {
+    const value = await getKvJsonOrText(key, env);
+    if (value) return value;
+  }
+
+  return null;
+}
+
+async function getKvJsonOrText(key, env) {
+  const value = await env.allconfig.get(key);
+  if (!value) return null;
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+async function resolveDomainValue(config) {
+  if (typeof config === "string") return safeString(config);
+
+  if (config && typeof config === "object") {
+    if (config.domain || config.list) return getDomain(config);
+    return (
+      safeString(config.url) ||
+      safeString(config.mainDomain) ||
+      safeString(config.value)
+    );
+  }
+
+  return "";
 }
 
 // =========================
