@@ -47,7 +47,7 @@ export default {
         return handleConfig(request, env, ctx);
       }
 
-      if (request.method === "POST" && url.pathname === "/api/domains") {
+      if (request.method === "GET" && url.pathname === "/api/domains") {
         return handleDomains(request, env);
       }
 
@@ -241,28 +241,12 @@ async function handleConfig(request, env, ctx) {
 }
 
 // =========================
-// 渠道域名批量查询
+// 渠道域名查询
 // =========================
 async function handleDomains(request, env) {
   const url = new URL(request.url);
-  const rawBody = await request.text();
-  let body = {};
-
-  if (rawBody.trim()) {
-    try {
-      body = JSON.parse(rawBody);
-    } catch {
-      return json({ error: "invalid json body" }, 400);
-    }
-
-    if (!body || typeof body !== "object" || Array.isArray(body)) {
-      return json({ error: "invalid json body" }, 400);
-    }
-  }
 
   const packageId =
-    safeString(body.packageid) ||
-    safeString(body.packageId) ||
     safeString(request.headers.get("packageid")) ||
     safeString(url.searchParams.get("packageid"));
 
@@ -278,12 +262,10 @@ async function handleDomains(request, env) {
     return json({ error: "package config not found" }, 404);
   }
 
-  const channels = normalizeStringArray(body.channels);
-  if (body.channels != null && !channels) {
-    return json({ error: "channels must be an array or string" }, 400);
-  }
+  const channel = safeString(url.searchParams.get("channel"));
+  const channels = channel ? [channel] : [];
 
-  if (!channels || channels.length === 0) {
+  if (channels.length === 0) {
     const domain = await resolveDomainValue(packageConfig);
     if (!domain) {
       return json({ error: "default domain not found" }, 404);
